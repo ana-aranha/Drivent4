@@ -469,7 +469,93 @@ describe("PUT /booking/:bookingId", () => {
       expect(response.status).toEqual(httpStatus.NOT_FOUND);
     });
 
-    it("should respond with status 200 and with bookingId", async () => {
+    it("should respond with status 403 and with bookingId when capacity is full", async () => {
+      const user = await createUser();
+      const seconduser = await createUser();
+      const thirduser = await createUser();
+      const fourthuser = await createUser();
+      const token = await generateValidToken(user);
+      const enrollment = await createEnrollmentWithAddress(user);
+      const ticketType = await createTicketTypeWithHotel();
+      const ticket = await createTicket(enrollment.id, ticketType.id, TicketStatus.PAID);
+      const payment = await createPayment(ticket.id, ticketType.price);
+      const createdHotel = await createHotel();
+      const createdRoom = await createRoomWithHotelId(createdHotel.id);
+      const createdSecondHotel = await createHotel();
+      const createdSecondRoom = await createRoomWithHotelId(createdSecondHotel.id);
+      const createdBooking = await createBooking(user.id, createdRoom.id);
+
+      await createBooking(seconduser.id, createdSecondRoom.id);
+      await createBooking(thirduser.id, createdSecondRoom.id);
+      await createBooking(fourthuser.id, createdSecondRoom.id);
+
+      const response = await server
+        .put(`/booking/${createdBooking.id}`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ roomId: createdSecondRoom.id });
+
+      expect(response.status).toEqual(httpStatus.FORBIDDEN);
+    });
+
+    it("should respond with status 200 and with bookingId when capacity máx-limit", async () => {
+      const user = await createUser();
+      const seconduser = await createUser();
+      const thirduser = await createUser();
+      const token = await generateValidToken(user);
+      const enrollment = await createEnrollmentWithAddress(user);
+      const ticketType = await createTicketTypeWithHotel();
+      const ticket = await createTicket(enrollment.id, ticketType.id, TicketStatus.PAID);
+      const payment = await createPayment(ticket.id, ticketType.price);
+      const createdHotel = await createHotel();
+      const createdRoom = await createRoomWithHotelId(createdHotel.id);
+      const createdSecondHotel = await createHotel();
+      const createdSecondRoom = await createRoomWithHotelId(createdSecondHotel.id);
+      const createdBooking = await createBooking(user.id, createdRoom.id);
+
+      await createBooking(seconduser.id, createdSecondRoom.id);
+      await createBooking(thirduser.id, createdSecondRoom.id);
+
+      const response = await server
+        .put(`/booking/${createdBooking.id}`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ roomId: createdSecondRoom.id });
+
+      expect(response.status).toEqual(httpStatus.OK);
+      expect(response.body).toEqual({
+        bookingId: expect.any(Number),
+      });
+    });
+
+    it("should respond with status 200 and with bookingId when capacity nominal limit", async () => {
+      const user = await createUser();
+      const seconduser = await createUser();
+      const token = await generateValidToken(user);
+      const enrollment = await createEnrollmentWithAddress(user);
+      const ticketType = await createTicketTypeWithHotel();
+      const ticket = await createTicket(enrollment.id, ticketType.id, TicketStatus.PAID);
+      const payment = await createPayment(ticket.id, ticketType.price);
+      const createdHotel = await createHotel();
+      const createdRoom = await createRoomWithHotelId(createdHotel.id);
+      const createdSecondHotel = await createHotel();
+      const createdSecondRoom = await createRoomWithHotelId(createdSecondHotel.id);
+      const createdBooking = await createBooking(user.id, createdRoom.id);
+
+      await createBooking(seconduser.id, createdSecondRoom.id);
+
+      const response = await server
+        .put(`/booking/${createdBooking.id}`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ roomId: createdSecondRoom.id });
+
+      expect(response.status).toEqual(httpStatus.OK);
+      expect(response.body).toEqual({
+        bookingId: expect.any(Number),
+      });
+
+      const afterCount = await prisma.booking.count();
+    });
+
+    it("should respond with status 200 and with bookingId when capacity min-limit", async () => {
       const user = await createUser();
       const token = await generateValidToken(user);
       const enrollment = await createEnrollmentWithAddress(user);
@@ -478,12 +564,14 @@ describe("PUT /booking/:bookingId", () => {
       const payment = await createPayment(ticket.id, ticketType.price);
       const createdHotel = await createHotel();
       const createdRoom = await createRoomWithHotelId(createdHotel.id);
+      const createdSecondHotel = await createHotel();
+      const createdSecondRoom = await createRoomWithHotelId(createdSecondHotel.id);
       const createdBooking = await createBooking(user.id, createdRoom.id);
 
       const response = await server
         .put(`/booking/${createdBooking.id}`)
         .set("Authorization", `Bearer ${token}`)
-        .send({ roomId: createdRoom.id });
+        .send({ roomId: createdSecondRoom.id });
 
       expect(response.status).toEqual(httpStatus.OK);
       expect(response.body).toEqual({
