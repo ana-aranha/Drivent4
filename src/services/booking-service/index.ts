@@ -86,10 +86,6 @@ async function putBooking(userId: number, roomId: number, bookingId: number) {
 
   const booking = await bookingRepository.updateBooking(bookingId, roomId);
 
-  if (!booking) {
-    throw unauthorizedError();
-  }
-
   const result = {
     bookingId: booking.id,
   };
